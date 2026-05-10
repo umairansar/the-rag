@@ -21,7 +21,9 @@ inngest_client = inngest.Inngest(
     serializer=inngest.PydanticSerializer(),
 )
 
-ANTHROPIC_API_KEY=os.getenv("ANTHROPIC_API_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 llm = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 '''
@@ -48,13 +50,21 @@ async def rag_ingest_pdf(ctx: inngest.Context):
         vecs = embed_texts(chunks)
         ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_id}:{i}")) for i in range(len(chunks))]
         payloads = [{"source": source_id, "text": chunks[i]} for i in range(len(chunks))]
-        QdrantStorage().upsert(ids, vecs, payloads)
+        db = QdrantStorage(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        db.upsert(ids, vecs, payloads)
         return RAGUpsertResult(ingested=len(chunks))
 
     chunks_and_src = await ctx.step.run("load-and-chunk", lambda: _load(ctx), output_type=RAGChunkAndSrc)
     ingested = await ctx.step.run("embed-and-upsert", lambda: _upsert(chunks_and_src), output_type=RAGUpsertResult)
     return ingested.model_dump()
 
+'''
+{
+  "data": {
+    "question":"Does umair have any work experience? Give 2 liner."
+  }
+}
+'''
 @inngest_client.create_function(
     fn_id="RAG: Query PDF",
     trigger=inngest.TriggerEvent(event="rag/query_pdf")
@@ -62,7 +72,7 @@ async def rag_ingest_pdf(ctx: inngest.Context):
 async def rag_query_pdf_ai(ctx: inngest.Context):
     def _search(question: str, top_k: int = 5) -> RAGSearchResult:
         query_vec = embed_texts([question])[0]
-        store = QdrantStorage()
+        store = QdrantStorage(url=QDRANT_URL, api_key=QDRANT_API_KEY)
         found = store.search(query_vec, top_k)
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
 
