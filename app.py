@@ -47,7 +47,7 @@ if uploaded is not None:
     with st.spinner("Uploading and triggering ingestion..."):
         path = save_uploaded_pdf(uploaded)
         # Kick off the event and block until the send completes
-        asyncio.run(send_rag_ingest_event(path))
+        asyncio.get_event_loop().run_until_complete(send_rag_ingest_event(path))
         # Small pause for user feedback continuity
         time.sleep(0.3)
     st.success(f"Triggered ingestion for: {path.name}")
@@ -111,7 +111,7 @@ with st.form("rag_query_form"):
     if submitted and question.strip():
         with st.spinner("Sending event and generating answer..."):
             # Fire-and-forget event to Inngest for observability/workflow
-            event_id = asyncio.run(send_rag_query_event(question.strip(), int(top_k)))
+            event_id = asyncio.get_event_loop().run_until_complete(send_rag_query_event(question.strip(), int(top_k)))
             # Poll the local Inngest API for the run's output
             output = wait_for_run_output(event_id)
             answer = output.get("answer", "")
