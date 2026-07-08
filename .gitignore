@@ -1,0 +1,6 @@
+.env
+rag-key.pem
+.claude
+.venv
+__pycache__/
+uploads/
