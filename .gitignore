@@ -4,3 +4,4 @@ rag-key.pem
 .venv
 __pycache__/
 uploads/
+deploy.md
