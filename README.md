@@ -1,7 +1,6 @@
 ## URLs
 - Streamlit: http://18.184.180.165:8501
 - Inngest dashboard: http://18.184.180.165:8288
-- FastAPI: http://18.184.180.165:8001/docs
 
 ## Restart services (clear ports first)
 
