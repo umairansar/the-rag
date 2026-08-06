@@ -1,4 +1,4 @@
-## Restart services (clear ports first)
+## Restart services on host (clear ports first)
 
 ```bash
 # Kill all services
@@ -12,7 +12,7 @@ sleep 2 && nohup uv run hypercorn main:app --bind "0.0.0.0:8001" > hypercorn.log
 sleep 2 && nohup uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 > streamlit.log 2>&1 &
 ```
 
-## Start services
+## Start services on host
 
 ```bash
 # Inngest
@@ -26,7 +26,7 @@ nohup uv run hypercorn main:app --bind "0.0.0.0:8001" > hypercorn.log 2>&1 &
 nohup uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0 > streamlit.log 2>&1 &
 ```
 
-## Local services
+## Start services on localhost
 
 ```bash
 # Inngest
@@ -38,4 +38,17 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8001
 
 # Streamlit
 uv run streamlit run app.py --server.port 8501 --server.address 0.0.0.0  
+```
+
+## Start services via docker
+
+```bash
+# Inngest
+docker run -d -p 8288:8288 --name inngest inngest/inngest inngest dev -u http://host.docker.internal:8001/api/inngest
+
+# FastAPI
+docker run -d -p 8001:8001 --env-file .env -v uploads:/usr/src/app/uploads --name backend backend
+
+# Streamlit
+docker run -d -it --env-file .env -v uploads:/usr/src/app/uploads -p 8501:8501 --name frontend frontend
 ```
