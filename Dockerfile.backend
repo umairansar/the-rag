@@ -1,0 +1,11 @@
+FROM astral/uv:python3.12-bookworm-slim
+
+WORKDIR /usr/src/app
+
+COPY . .
+
+RUN uv sync --no-dev --locked
+
+EXPOSE 8001
+
+CMD ["uv", "run", "hypercorn", "main:app", "--bind", "0.0.0.0:8001"]
