@@ -1,0 +1,46 @@
+services:
+        proxy_edge:
+                image: nginx:1.31.3-alpine
+                ports:
+                        - 80:80
+                        - 81:81
+                volumes:
+                        - ./nginx/nginx-edge.conf:/etc/nginx/nginx.conf
+                networks:
+                        - app_subnet
+                depends_on:
+                        - frontend
+                        - inngest
+                container_name: proxy_edge
+        frontend:
+                build:
+                        dockerfile: Dockerfile.frontend
+                networks:
+                        - app_subnet
+                volumes:
+                        - ./uploads:/usr/src/app/uploads
+                environment:
+                        - INNGEST_API_BASE=http://inngest:8288/v1
+                        - INNGEST_BASE_URL=http://inngest:8288
+                env_file:
+                        - .env
+                container_name: frontend
+        inngest:
+                image: inngest/inngest:v1.40.0
+                networks:
+                        - app_subnet
+                command: inngest dev -u http://proxy_internal:8080/api/inngest
+                container_name: inngest
+        proxy_internal:
+                image: nginx:1.31.3-alpine
+                volumes:
+                        - ./nginx/nginx-internal.conf:/etc/nginx/nginx.conf
+                networks:
+                        - app_subnet
+                        - core_subnet
+                container_name: proxy_internal
+networks:
+        app_subnet:
+                name: app_subnet
+        core_subnet:
+                name: core_subnet 

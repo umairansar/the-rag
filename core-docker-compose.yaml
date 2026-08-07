@@ -1,0 +1,17 @@
+services:
+        backend:
+                build:
+                        dockerfile: Dockerfile.backend
+                networks:
+                        - core_subnet
+                volumes:
+                        - ./uploads:/usr/src/app/uploads
+                env_file:
+                        - .env
+                environment:
+                        - SERVE_ORIGIN=http://proxy_internal:8080
+                        - INNGEST_BASE_URL=http://proxy_internal:8081
+                container_name: backend
+networks:
+        core_subnet:
+                external: true

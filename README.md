@@ -52,3 +52,15 @@ docker run -d -p 8001:8001 --env-file .env -v uploads:/usr/src/app/uploads --nam
 # Streamlit
 docker run -d -it --env-file .env -v uploads:/usr/src/app/uploads -p 8501:8501 --name frontend frontend
 ```
+
+## Start services via docker compose
+
+```bash
+
+## Frontend
+docker compose -f .\app-docker-compose.yaml up -d
+
+## Backend
+docker compose -f .\core-docker-compose.yaml up -d
+
+```
