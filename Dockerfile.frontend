@@ -2,7 +2,7 @@ FROM astral/uv:python3.12-bookworm-slim
 
 WORKDIR /usr/src/app
 
-COPY app.py pyproject.toml uv.lock .
+COPY src/app.py pyproject.toml uv.lock .
 
 RUN uv sync --no-dev --locked
 

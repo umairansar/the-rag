@@ -5,3 +5,6 @@ rag-key.pem
 __pycache__/
 uploads/
 deploy.md
+future.md
+CLAUDE.md
+architecture.md
