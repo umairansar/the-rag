@@ -1,9 +1,17 @@
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
-from data_loader import EMBED_DIM
+from core.datastore.protocol import DataStore
+from rag.data_loader import EMBED_DIM
 
-class QdrantStorage:
-    def __init__(self, url="http://localhost:6333", api_key=None, collection="docs", dim=EMBED_DIM):
+class QdrantDataStore(DataStore):
+    
+    def __init__(
+        self,
+        url="http://localhost:6333",
+        api_key=None,
+        collection="docs",
+        dim=EMBED_DIM):
+
         self.client = QdrantClient(url=url, api_key=api_key, timeout=30)
         self.collection = collection
         if not self.client.collection_exists(self.collection):
@@ -12,11 +20,22 @@ class QdrantStorage:
                 vectors_config=VectorParams(size=dim, distance=Distance.COSINE)
             )
 
-    def upsert(self, ids, vectors, payloads):
+    def upsert(
+        self,
+        ids: list[str],
+        vectors: list[list[float]],
+        payloads: list[dict[str, str]],
+    ) -> None:
+
         points = [PointStruct(id=ids[i], vector=vectors[i], payload=payloads[i]) for i in range(len(ids))]
         self.client.upsert(self.collection, points=points)
 
-    def search(self, query_vector, top_k: int = 5):
+    def search(
+        self,
+        query_vector: list[float],
+        top_k: int = 5
+    ) -> dict[str, list[str]]:
+
         results = self.client.query_points(
             collection_name=self.collection,
             query=query_vector,

@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 import uuid
 import os
 import datetime
-from data_loader import load_and_chunk_pdf, embed_texts
-from vector_db import QdrantStorage
-from custom_types import RAGChunkAndSrc, RAGUpsertResult, RAGSearchResult, RAGQueryResult
+from rag.data_loader import load_and_chunk_pdf, embed_texts
+from core.datastore.qdrant_data_store import QdrantDataStore
+from rag.schemas import RAGChunkAndSrc, RAGUpsertResult, RAGSearchResult, RAGQueryResult
 import anthropic
 
 load_dotenv()
@@ -50,7 +50,7 @@ async def rag_ingest_pdf(ctx: inngest.Context):
         vecs = embed_texts(chunks)
         ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_id}:{i}")) for i in range(len(chunks))]
         payloads = [{"source": source_id, "text": chunks[i]} for i in range(len(chunks))]
-        db = QdrantStorage(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        db = QdrantDataStore(url=QDRANT_URL, api_key=QDRANT_API_KEY)
         db.upsert(ids, vecs, payloads)
         return RAGUpsertResult(ingested=len(chunks))
 
@@ -72,7 +72,7 @@ async def rag_ingest_pdf(ctx: inngest.Context):
 async def rag_query_pdf_ai(ctx: inngest.Context):
     def _search(question: str, top_k: int = 5) -> RAGSearchResult:
         query_vec = embed_texts([question])[0]
-        store = QdrantStorage(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        store = QdrantDataStore(url=QDRANT_URL, api_key=QDRANT_API_KEY)
         found = store.search(query_vec, top_k)
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
 
