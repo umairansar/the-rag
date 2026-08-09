@@ -58,9 +58,9 @@ docker run -d -it --env-file .env -v uploads:/usr/src/app/uploads -p 8501:8501 -
 ```bash
 
 ## Frontend
-docker compose -f .\app-docker-compose.yaml up -d
+docker compose -f .\docker-compose.app.yaml up -d
 
 ## Backend
-docker compose -f .\core-docker-compose.yaml up -d
+docker compose -f .\docker-compose.core.yaml up -d
 
 ```
