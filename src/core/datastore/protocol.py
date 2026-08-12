@@ -1,4 +1,4 @@
-from typing import Protocol, Any
+from typing import Protocol
 
 class DataStore(Protocol):
     def upsert(
@@ -10,6 +10,6 @@ class DataStore(Protocol):
 
     def search(
         self,
-        query_vector,
+        query_vector: list[float],
         top_k: int = 5) -> dict[str, list[str]]:
         ...

@@ -1,30 +1,29 @@
-import logging
 from fastapi import FastAPI
 import inngest
 import inngest.fast_api
-from inngest.experimental import ai
+from inngest.experimental import ai, realtime
 from dotenv import load_dotenv
 import uuid
 import os
 import datetime
-from rag.data_loader import load_and_chunk_pdf, embed_texts
-from core.datastore.qdrant_data_store import QdrantDataStore
+from rag.data_loader import load_and_chunk_pdf
 from rag.schemas import RAGChunkAndSrc, RAGUpsertResult, RAGSearchResult, RAGQueryResult
-import anthropic
+from core.inngest.client import create_inngest_client
+from core.embedding.openai_embedding_model import OpenAIEmbeddingModel
+from core.datastore.qdrant_datastore import QdrantDataStore
+from core.llm.anthropic import AnthropicLlM
 
 load_dotenv()
-
-inngest_client = inngest.Inngest(
-    app_id="rag_app",
-    logger=logging.getLogger("uvicorn"),
-    is_production=False,
-    serializer=inngest.PydanticSerializer(),
-)
 
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-llm = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+inngest_client = create_inngest_client()
+vector_store = QdrantDataStore(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+embedding_model = OpenAIEmbeddingModel(api_key=OPENAI_API_KEY)
+llm = AnthropicLlM(api_key=ANTHROPIC_API_KEY)
 
 '''
 {
@@ -47,11 +46,10 @@ async def rag_ingest_pdf(ctx: inngest.Context):
     def _upsert(chunk_and_src: RAGChunkAndSrc) -> RAGUpsertResult:
         chunks = chunk_and_src.chunks
         source_id = chunk_and_src.source_id
-        vecs = embed_texts(chunks)
+        vecs = embedding_model.generate(chunks)
         ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_id}:{i}")) for i in range(len(chunks))]
         payloads = [{"source": source_id, "text": chunks[i]} for i in range(len(chunks))]
-        db = QdrantDataStore(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        db.upsert(ids, vecs, payloads)
+        vector_store.upsert(ids, vecs, payloads)
         return RAGUpsertResult(ingested=len(chunks))
 
     chunks_and_src = await ctx.step.run("load-and-chunk", lambda: _load(ctx), output_type=RAGChunkAndSrc)
@@ -71,10 +69,27 @@ async def rag_ingest_pdf(ctx: inngest.Context):
 )
 async def rag_query_pdf_ai(ctx: inngest.Context):
     def _search(question: str, top_k: int = 5) -> RAGSearchResult:
-        query_vec = embed_texts([question])[0]
-        store = QdrantDataStore(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        found = store.search(query_vec, top_k)
+        query_vec = embedding_model.generate([question])[0]
+        found = vector_store.search(query_vec, top_k)
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
+
+    async def _generate(prompt: str) -> str:
+        # answer = []
+        # with llm.messages.stream(
+        #     model="claude-haiku-4-5-20251001",
+        #     max_tokens=1024,
+        #     messages=[{"role": "user", "content": prompt}]
+        # ) as stream:
+        #     for text in stream.text_stream:
+        #         await realtime.publish(
+        #             client=inngest_client,
+        #             channel="user:anonymous",
+        #             topic="messages",
+        #             data={"text": text},
+        #         )
+        #         answer.append(text)
+        # return "".join(answer)
+        return llm.generate_answer(prompt)
 
     question = ctx.event.data["question"]
     top_k = ctx.event.data.get("top_k", 5)
@@ -89,12 +104,7 @@ async def rag_query_pdf_ai(ctx: inngest.Context):
         "Answer concisely using the context above."
     )
 
-    response = llm.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": user_content}]
-    )
-    answer = response.content[0].text
+    answer = await ctx.step.run("generate", lambda: _generate(user_content), output_type=str)
     return RAGQueryResult(answer=answer, sources=found.sources, num_contexts=len(found.contexts)).model_dump()
 
 app = FastAPI()
