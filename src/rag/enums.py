@@ -1,7 +1,8 @@
 from enum import Enum
 
 
-class IngestStatus(int, Enum):
-    STARTED = 1
-    PROCESSING = 2
-    COMPLETED = 3
+class IngestStatus(str, Enum):
+    STARTED = "STARTED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
