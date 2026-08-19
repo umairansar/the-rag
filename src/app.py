@@ -34,45 +34,13 @@ async def send_rag_ingest_event(pdf_path: Path) -> None:
     client = get_inngest_client()
     await client.send(
         inngest.Event(
-            name="rag/ingest_pdf",
+            name="rag/v1/ingest_pdf",
             data={
                 "pdf_path": str(pdf_path.resolve()),
                 "source_id": pdf_path.name,
             },
         )
     )
-
-
-st.title("Upload a PDF to Ingest")
-uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=False)
-
-if uploaded is not None:
-    with st.spinner("Uploading and triggering ingestion..."):
-        path = save_uploaded_pdf(uploaded)
-        # Kick off the event and block until the send completes
-        asyncio.run(send_rag_ingest_event(path))
-        # Small pause for user feedback continuity
-        time.sleep(0.3)
-    st.success(f"Triggered ingestion for: {path.name}")
-    st.caption("You can upload another PDF if you like.")
-
-st.divider()
-st.title("Ask a question about your PDFs")
-
-
-async def send_rag_query_event(question: str, top_k: int) -> None:
-    client = get_inngest_client()
-    result = await client.send(
-        inngest.Event(
-            name="rag/query_pdf",
-            data={
-                "question": question,
-                "top_k": top_k,
-            },
-        )
-    )
-
-    return result[0]
 
 
 def _inngest_api_base() -> str:
@@ -104,6 +72,92 @@ def wait_for_run_output(event_id: str, timeout_s: float = 120.0, poll_interval_s
         if time.time() - start > timeout_s:
             raise TimeoutError(f"Timed out waiting for run output (last status: {last_status})")
         time.sleep(poll_interval_s)
+
+
+async def send_rag_upload_event(file_name: str) -> str:
+    client = get_inngest_client()
+    result = await client.send(
+        inngest.Event(name="rag/v2/upload_pdf", data={"file_name": file_name})
+    )
+    return result[0]
+
+
+async def send_rag_ingest_v2_event(file_key: str) -> str:
+    client = get_inngest_client()
+    result = await client.send(
+        inngest.Event(name="rag/v2/ingest_pdf", data={"file_key": file_key})
+    )
+    return result[0]
+
+
+title_col, flow_col = st.columns([3, 1])
+with title_col:
+    st.title("Upload a PDF to Ingest")
+with flow_col:
+    ingest_flow = st.segmented_control(
+        "Ingest flow",
+        ["Deprecated", "New"],
+        default="Deprecated",
+        required=True,
+        label_visibility="collapsed",
+        help="Deprecated: local upload. New: R2 presigned upload.",
+    )
+
+uploaded = st.file_uploader("Choose a PDF", type=["pdf"], accept_multiple_files=False)
+
+if uploaded is not None:
+    if ingest_flow == "Deprecated":
+        with st.spinner("Uploading and triggering ingestion..."):
+            path = save_uploaded_pdf(uploaded)
+            # Kick off the event and block until the send completes
+            asyncio.run(send_rag_ingest_event(path))
+            # Small pause for user feedback continuity
+            time.sleep(0.3)
+        st.success(f"Triggered ingestion for: {path.name}")
+    else:
+        with st.spinner("Requesting presigned upload URL..."):
+            upload_event_id = asyncio.run(send_rag_upload_event(uploaded.name))
+            upload_output = wait_for_run_output(upload_event_id)
+            file_url = upload_output.get("file_url")
+            file_key = upload_output.get("file_key")
+
+        if not file_url or not file_key:
+            st.error(f"Failed to get presigned URL: {upload_output}")
+        else:
+            with st.spinner("Uploading file to R2..."):
+                # Content-Type must match what the presigned URL was signed with,
+                # or R2 rejects the upload with 403 SignatureDoesNotMatch
+                put_resp = requests.put(
+                    file_url,
+                    data=uploaded.getvalue(),
+                    headers={"Content-Type": "application/pdf"},
+                )
+                put_resp.raise_for_status()
+
+            with st.spinner("Triggering ingestion..."):
+                ingest_event_id = asyncio.run(send_rag_ingest_v2_event(file_key))
+                ingest_output = wait_for_run_output(ingest_event_id)
+
+            st.success(f"Ingestion status: {ingest_output.get('status')}")
+    st.caption("You can upload another PDF if you like.")
+
+st.divider()
+st.title("Ask a question about your PDFs")
+
+
+async def send_rag_query_event(question: str, top_k: int) -> None:
+    client = get_inngest_client()
+    result = await client.send(
+        inngest.Event(
+            name="rag/v1/query_pdf",
+            data={
+                "question": question,
+                "top_k": top_k,
+            },
+        )
+    )
+
+    return result[0]
 
 
 with st.form("rag_query_form"):
