@@ -1,8 +1,18 @@
-import inngest
 import uuid
+from pathlib import Path
+
+import inngest
+
+from core.deps import embedding_model, inngest_client, llm, vector_store
 from rag.data_loader import load_and_chunk_pdf
-from rag.schemas import RAGChunkAndSrc, RAGUpsertResult, RAGSearchResult, RAGQueryResult
-from core.deps import inngest_client, vector_store, embedding_model, llm
+from rag.schemas import (
+    IngestStatus,
+    RAGChunkAndSrc,
+    RAGIngestResult,
+    RAGQueryResult,
+    RAGSearchResult,
+    RAGUpsertResult,
+)
 
 '''
 {
@@ -19,7 +29,8 @@ async def rag_ingest_pdf(ctx: inngest.Context):
     def _load(ctx: inngest.Context) -> RAGChunkAndSrc:
         pdf_path = ctx.event.data["pdf_path"]
         source_id = ctx.event.data.get("source_id", pdf_path)
-        chunks = load_and_chunk_pdf(pdf_path)
+        data = Path(pdf_path).read_bytes()
+        chunks = load_and_chunk_pdf(data)
         return RAGChunkAndSrc(chunks=chunks, source_id=source_id)
 
     def _upsert(chunk_and_src: RAGChunkAndSrc) -> RAGUpsertResult:
@@ -33,7 +44,7 @@ async def rag_ingest_pdf(ctx: inngest.Context):
 
     chunks_and_src = await ctx.step.run("load-and-chunk", lambda: _load(ctx), output_type=RAGChunkAndSrc)
     ingested = await ctx.step.run("embed-and-upsert", lambda: _upsert(chunks_and_src), output_type=RAGUpsertResult)
-    return ingested.model_dump()
+    return RAGIngestResult(status=IngestStatus.COMPLETED).model_dump()
 
 '''
 {

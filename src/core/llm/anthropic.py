@@ -1,5 +1,7 @@
+from collections.abc import Iterable
+
 import anthropic
-from typing import Iterable
+
 from core.llm.protocol import Llm
 
 MODEL = "claude-haiku-4-5-20251001"

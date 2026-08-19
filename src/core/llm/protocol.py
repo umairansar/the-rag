@@ -1,4 +1,6 @@
-from typing import Protocol, Iterable
+from collections.abc import Iterable
+from typing import Protocol
+
 
 class Llm(Protocol):
     def generate_answer(

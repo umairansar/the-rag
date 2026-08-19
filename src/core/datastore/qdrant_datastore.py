@@ -1,7 +1,9 @@
 from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, Distance, PointStruct
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
 from core.datastore.protocol import DataStore
 from core.embedding.openai_embedding_model import EMBED_DIM
+
 
 class QdrantDataStore(DataStore):
     
