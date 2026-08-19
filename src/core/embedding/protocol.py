@@ -1,5 +1,6 @@
 from typing import Protocol
 
+
 class EmbeddingModel(Protocol):
     def generate(
         self,
