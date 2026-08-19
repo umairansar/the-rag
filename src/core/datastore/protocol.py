@@ -1,5 +1,6 @@
 from typing import Protocol
 
+
 class DataStore(Protocol):
     def upsert(
         self, 

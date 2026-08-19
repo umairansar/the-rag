@@ -1,6 +1,8 @@
-from fastapi import FastAPI
-import inngest.fast_api
 import os
+
+import inngest.fast_api
+from fastapi import FastAPI
+
 from rag.functions import inngest_client, rag_ingest_pdf, rag_query_pdf_ai
 
 app = FastAPI()

@@ -1,5 +1,7 @@
 import logging
+
 import inngest
+
 
 def create_inngest_client(
     app_id: str = "rag_app",
